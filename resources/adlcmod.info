@@ -1,13 +1,13 @@
 [
 {
-  "modid": "CodeChickenCore",
-  "name": "CodeChicken Core",
-  "description": "Base common code for all chickenbones mods.
+  "modid": "AlksDepLoader",
+  "name": "Alk's DepLoader",
+  "description": "Dependency Downloader for GTNH, build from CB's DepLoader in CCC.
 
-Supporters: JBoyJr",
+Supporters: None",
   "version": "${version}",
   "mcversion": "${mc_version}",
-  "url": "http://www.minecraftforum.net/topic/909223",
-  "authorList": [ "ChickenBones" ]
+  "url": "",
+  "authorList": [ "ChickenBones, Alkalus" ]
 }
 ]

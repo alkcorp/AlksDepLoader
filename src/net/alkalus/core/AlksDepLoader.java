@@ -1,50 +1,77 @@
-package codechicken.core.launch;
+package net.alkalus.core;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import cpw.mods.fml.common.versioning.ComparableVersion;
-import cpw.mods.fml.relauncher.FMLInjectionData;
-import cpw.mods.fml.relauncher.FMLLaunchHandler;
-import cpw.mods.fml.relauncher.IFMLCallHook;
-import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
-import net.minecraft.launchwrapper.LaunchClassLoader;
-import sun.misc.URLClassPath;
-import sun.net.util.URLUtil;
-
-import javax.swing.*;
-import javax.swing.event.HyperlinkEvent;
-import javax.swing.event.HyperlinkListener;
-import java.awt.*;
+import java.awt.Desktop;
 import java.awt.Dialog.ModalityType;
+import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.*;
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.InterruptedIOException;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import javax.swing.Box;
+import javax.swing.JDialog;
+import javax.swing.JEditorPane;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JProgressBar;
+import javax.swing.WindowConstants;
+import javax.swing.event.HyperlinkEvent;
+import javax.swing.event.HyperlinkListener;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+import cpw.mods.fml.common.versioning.ComparableVersion;
+import cpw.mods.fml.relauncher.FMLInjectionData;
+import cpw.mods.fml.relauncher.FMLLaunchHandler;
+import cpw.mods.fml.relauncher.IFMLCallHook;
+import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
+import net.minecraft.launchwrapper.Launch;
+import net.minecraft.launchwrapper.LaunchClassLoader;
+import sun.misc.URLClassPath;
+import sun.net.util.URLUtil;
+
 /**
  * For autodownloading stuff.
  * This is really unoriginal, mostly ripped off FML, credits to cpw, ChickenBones.
  */
-public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
+public class AlksDepLoader implements IFMLLoadingPlugin, IFMLCallHook {
     private static ByteBuffer downloadBuffer = ByteBuffer.allocateDirect(1 << 23);
     private static final String owner = "Alk's DepLoader";
     private static DepLoadInst inst;
-
+    
+    public static void log(String aString) {
+    	System.out.println("[Alk's DepLoader]: "+aString);
+    }
+    
     public interface IDownloadDisplay {
         void resetProgress(int sizeGuess);
 
@@ -75,7 +102,7 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
             JLabel welcomeLabel = new JLabel("<html><b><font size='+1'>" + owner + " is setting up your minecraft environment</font></b></html>");
             box.add(welcomeLabel);
             welcomeLabel.setAlignmentY(LEFT_ALIGNMENT);
-            welcomeLabel = new JLabel("<html>Please wait, " + owner + " has some tasks to do before you can play</html>");
+            welcomeLabel = new JLabel("<html>Downloading non-twitch Mods. Remember, GTNH on Twitch is only possible due to this. Consider supporting Alkalus on Patreon.</html>");
             welcomeLabel.setAlignmentY(LEFT_ALIGNMENT);
             box.add(welcomeLabel);
             box.add(Box.createRigidArea(new Dimension(0, 10)));
@@ -261,10 +288,14 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
             this.url = url;
             this.file = file;
             this.coreLib = coreLib;
+        	log("Creating dependency - "+url.toString()+" | CoreMod: "+coreLib);
         }
     }
 
     public static class DepLoadInst {
+    	
+    	private boolean DEV_MODE;
+    	
         private File modsDir;
         private File v_modsDir;
         private IDownloadDisplay downloadMonitor;
@@ -274,29 +305,36 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
         private HashSet<String> depSet = new HashSet<String>();
 
         public DepLoadInst() {
+        	log("Creating new DepLoader Instance");
+    		DEV_MODE = (Boolean) Launch.blackboard.get("fml.deobfuscatedEnvironment");
+    		log("Dev Mode? "+DEV_MODE);
             String mcVer = (String) FMLInjectionData.data()[4];
             File mcDir = (File) FMLInjectionData.data()[6];
 
             modsDir = new File(mcDir, "mods");
-            v_modsDir = new File(mcDir, "mods/" + mcVer);
-            if (!v_modsDir.exists())
-                v_modsDir.mkdirs();
+            v_modsDir = new File(mcDir, "mods/");
+            if (!v_modsDir.exists()) {
+            	log("Making Mod Dirs");
+            	v_modsDir.mkdirs();
+            }
         }
 
         private void addClasspath(String name) {
             try {
-                ((LaunchClassLoader) DepLoader.class.getClassLoader()).addURL(new File(v_modsDir, name).toURI().toURL());
+            	log("Trying to add "+name+" to classpath");
+                ((LaunchClassLoader) AlksDepLoader.class.getClassLoader()).addURL(new File(v_modsDir, name).toURI().toURL());
             } catch (MalformedURLException e) {
                 throw new RuntimeException(e);
             }
         }
 
         private void deleteMod(File mod) {
+        	log("Trying to delete mod - "+mod != null ? mod.getName() : "BadModFile");
             if (mod.delete())
                 return;
 
             try {
-                ClassLoader cl = DepLoader.class.getClassLoader();
+                ClassLoader cl = AlksDepLoader.class.getClassLoader();
                 URL url = mod.toURI().toURL();
                 Field f_ucp = URLClassLoader.class.getDeclaredField("ucp");
                 Field f_loaders = URLClassPath.class.getDeclaredField("loaders");
@@ -318,7 +356,7 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
             if (!mod.delete()) {
                 mod.deleteOnExit();
                 String msg = owner + " was unable to delete file " + mod.getPath() + " the game will now try to delete it on exit. If this dialog appears again, delete it manually.";
-                System.err.println(msg);
+                log(msg);
                 if (!GraphicsEnvironment.isHeadless())
                     JOptionPane.showMessageDialog(null, msg, "An update error has occured", JOptionPane.ERROR_MESSAGE);
 
@@ -327,12 +365,13 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
         }
 
         private void download(Dependency dep) {
+        	log("Trying to download a Dependency "+dep.url.toString());
             popupWindow = (JDialog) downloadMonitor.makeDialog();
             File libFile = new File(v_modsDir, dep.file.filename);
             try {
                 URL libDownload = new URL(dep.url + '/' + dep.file.filename);
                 downloadMonitor.updateProgressString("Downloading file %s", libDownload.toString());
-                System.out.format("Downloading file %s\n", libDownload.toString());
+                log("Downloading file " + libDownload.toString());
                 URLConnection connection = libDownload.openConnection();
                 connection.setConnectTimeout(5000);
                 connection.setReadTimeout(5000);
@@ -346,7 +385,7 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
             } catch (Exception e) {
                 libFile.delete();
                 if (downloadMonitor.shouldStopIt()) {
-                    System.err.println("You have stopped the downloading operation before it could complete");
+                    log("You have stopped the downloading operation before it could complete");
                     System.exit(1);
                     return;
                 }
@@ -433,7 +472,7 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
                     return null;
                 }
                 if (cmp > 0) {
-                    System.err.println("Warning: version of " + dep.file.name + ", " + vfile.version + " is newer than request " + dep.file.version);
+                    log("Warning: version of " + dep.file.name + ", " + vfile.version + " is newer than request " + dep.file.version);
                     return f.getName();
                 }
                 return f.getName();//found dependency
@@ -442,13 +481,65 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
         }
 
         public void load() {
+        	
+        	log("Scanning Dependency Infos");
             scanDepInfos();
-            if (depMap.isEmpty())
-                return;
+            
+            if (depMap.isEmpty()) {
+            	
+            	log("Failed to find any");
+            	
+            	if (DEV_MODE) {
+            		
+                	log("In Dev Mode, doing extra checks");
+                	
+            		//Get file from resources folder
+            		try {
+            		ClassLoader classLoader = getClass().getClassLoader();
+            		File file = new File(classLoader.getResource("dependencies.info").getFile());
+            		if (file == null) {
+            			return;
+            		}
+            		scanDepInfoDevMode(file);
+                    if (depMap.isEmpty()) {
+                    	log("Failed to find any");
+                    	return;
+                    }
+            		}
+            		catch (Throwable t) {
+                    	log("ERROR");
+                    	t.printStackTrace();
+            			return;
+            		}
+            	}
+            	else {
+            		return;
+            	}
+            	
+            }
 
+        	log("Trying to load deps");
             loadDeps();
+            
+        	log("Trying to active deps");
             activateDeps();
         }
+        
+        /**
+         * Internal method to test in dev envs.
+         * @param file
+         */
+        private void scanDepInfoDevMode(File file) {
+            try {
+            	log("Looking for dependencies inside of "+file.getName());
+            	InputStream targetStream = new FileInputStream(file);
+                loadJSon(targetStream);
+            } catch (Exception e) {
+                log("Failed to load dependencies.info from " + file.getName() + " as JSON");
+                e.printStackTrace();
+            }
+        }
+        
 
         private void activateDeps() {
             for (Dependency dep : depMap.values())
@@ -457,6 +548,7 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
         }
 
         private void loadDeps() {
+        	log("Trying to load deps");
             downloadMonitor = FMLLaunchHandler.side().isClient() ? new Downloader() : new DummyDownloader();
             try {
                 while (!depSet.isEmpty()) {
@@ -491,6 +583,7 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
 
         private void scanDepInfos() {
             for (File file : modFiles()) {
+            	log("Found modfile - "+file.getName());
                 if (!file.getName().endsWith(".jar") && !file.getName().endsWith(".zip"))
                     continue;
 
@@ -500,6 +593,7 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
 
         private void scanDepInfo(File file) {
             try {
+            	log("Looking for dependencies inside of "+file.getName());
                 ZipFile zip = new ZipFile(file);
                 ZipEntry e = zip.getEntry("dependancies.info");
                 if (e == null) e = zip.getEntry("dependencies.info");
@@ -507,8 +601,8 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
                     loadJSon(zip.getInputStream(e));
                 zip.close();
             } catch (Exception e) {
-                System.err.println("Failed to load dependencies.info from " + file.getName() + " as JSON");
-                e.printStackTrace();
+                log("Failed to load dependencies.info from " + file.getName() + " as JSON");
+                //e.printStackTrace();
             }
         }
 
@@ -528,11 +622,13 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
         }
 
         private void loadJson(JsonObject node) throws IOException {
-            boolean obfuscated = ((LaunchClassLoader) DepLoader.class.getClassLoader())
+            boolean obfuscated = ((LaunchClassLoader) AlksDepLoader.class.getClassLoader())
                     .getClassBytes("net.minecraft.world.World") == null;
 
+            
+            
             String testClass = node.get("class").getAsString();
-            if (DepLoader.class.getResource("/" + testClass.replace('.', '/') + ".class") != null)
+            if (AlksDepLoader.class.getResource("/" + testClass.replace('.', '/') + ".class") != null)
                 return;
 
             String repo = node.get("repo").getAsString();
@@ -547,7 +643,7 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
                 if(node.has("pattern"))
                     pattern = Pattern.compile(node.get("pattern").getAsString());
             } catch (PatternSyntaxException e) {
-                System.err.println("Invalid filename pattern: "+node.get("pattern"));
+                log("Invalid filename pattern: "+node.get("pattern"));
                 e.printStackTrace();
             }
             if(pattern == null)
@@ -579,8 +675,10 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
     }
 
     public static void load() {
+    	System.out.println("Starting Alk's DepLoader!");
         if (inst == null) {
             inst = new DepLoadInst();
+        	log("Starting DepLoader");
             inst.load();
         }
     }

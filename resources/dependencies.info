@@ -1,7 +1,23 @@
-{
-	"repo": "http://files.minecraftforge.net/maven/codechicken/CodeChickenLib/",
-	"file": "CodeChickenLib-universal.jar",
-	"dev": "CodeChickenLib-dev.jar",
-	"class": "codechicken.lib.asm.ASMHelper",
-	"coreLib": false
-}
+[
+	{
+		"repo": "https://github.com/alkcorp/GTplusplus/tree/master/libs/",
+		"file": "PlayerAPI-1.7.10-1.4.jar",
+		"dev": "PlayerAPI-1.7.10-1.4.jar",
+		"class": "leave.empty",
+		"coreLib": true
+	},
+	{
+		"repo": "https://github.com/alkcorp/GTplusplus/tree/master/libs/",
+		"file": "Baubles-deobf-1.7.10-1.0.1.10.jar",
+		"dev": "Baubles-deobf-1.7.10-1.0.1.10.jar",
+		"class": "leave.empty",
+		"coreLib": false
+	},
+	{
+		"repo": "https://media.forgecdn.net/files/2230/908/",
+		"file": "ironchest-1.7.10-6.0.62.742-universal.jar",
+		"dev": "ironchest-1.7.10-6.0.62.742-universal.jar",
+		"class": "leave.empty",
+		"coreLib": false
+	}	
+]
