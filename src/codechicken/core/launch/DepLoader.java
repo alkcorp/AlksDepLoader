@@ -38,11 +38,11 @@ import java.util.zip.ZipFile;
 
 /**
  * For autodownloading stuff.
- * This is really unoriginal, mostly ripped off FML, credits to cpw.
+ * This is really unoriginal, mostly ripped off FML, credits to cpw, ChickenBones.
  */
 public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
     private static ByteBuffer downloadBuffer = ByteBuffer.allocateDirect(1 << 23);
-    private static final String owner = "CB's DepLoader";
+    private static final String owner = "Alk's DepLoader";
     private static DepLoadInst inst;
 
     public interface IDownloadDisplay {
@@ -105,7 +105,7 @@ public class DepLoader implements IFMLLoadingPlugin, IFMLCallHook {
                     }
                 }
             });
-            container = new JDialog(null, "Hello", ModalityType.MODELESS);
+            container = new JDialog(null, "Alk's DepLoader", ModalityType.MODELESS);
             container.setResizable(false);
             container.setLocationRelativeTo(null);
             container.add(this);

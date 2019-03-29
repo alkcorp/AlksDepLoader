@@ -15,29 +15,28 @@ import javax.swing.JOptionPane;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 
-import codechicken.core.asm.*;
-import cpw.mods.fml.relauncher.CoreModManager;
-
-import cpw.mods.fml.common.versioning.DefaultArtifactVersion;
-import cpw.mods.fml.common.versioning.VersionParser;
-import cpw.mods.fml.relauncher.FMLInjectionData;
-import cpw.mods.fml.relauncher.IFMLCallHook;
-import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
-import cpw.mods.fml.relauncher.IFMLLoadingPlugin.TransformerExclusions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@TransformerExclusions(value = {"codechicken.core.asm", "codechicken.obfuscator"})
-public class CodeChickenCorePlugin implements IFMLLoadingPlugin, IFMLCallHook
+import codechicken.core.asm.DelegatedTransformer;
+import codechicken.core.asm.MCPDeobfuscationTransformer;
+import cpw.mods.fml.common.versioning.DefaultArtifactVersion;
+import cpw.mods.fml.common.versioning.VersionParser;
+import cpw.mods.fml.relauncher.CoreModManager;
+import cpw.mods.fml.relauncher.FMLInjectionData;
+import cpw.mods.fml.relauncher.IFMLCallHook;
+import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
+
+public class AlkDepLoaderCore implements IFMLLoadingPlugin, IFMLCallHook
 {
     public static final String mcVersion = "[1.7.10]";
-    public static final String version = "${mod_version}";
+    public static final String version = "1";
 
     public static File minecraftDir;
     public static String currentMcVersion;
-    public static Logger logger = LogManager.getLogger("CodeChickenCore");
+    public static Logger logger = LogManager.getLogger("AlkDepLoaderCore");
 
-    public CodeChickenCorePlugin() {
+    public AlkDepLoaderCore() {
         if (minecraftDir != null)
             return;//get called twice, once for IFMLCallHook
 
@@ -45,7 +44,7 @@ public class CodeChickenCorePlugin implements IFMLLoadingPlugin, IFMLCallHook
         currentMcVersion = (String) FMLInjectionData.data()[4];
 
         DepLoader.load();
-        injectDeobfPlugin();
+        //injectDeobfPlugin();
     }
 
     private void injectDeobfPlugin() {
@@ -55,7 +54,7 @@ public class CodeChickenCorePlugin implements IFMLLoadingPlugin, IFMLCallHook
             Field f_loadPlugins = CoreModManager.class.getDeclaredField("loadPlugins");
             wrapperConstructor.setAccessible(true);
             f_loadPlugins.setAccessible(true);
-            ((List)f_loadPlugins.get(null)).add(2, wrapperConstructor.newInstance("CCCDeobfPlugin", new MCPDeobfuscationTransformer.LoadPlugin(), null, 0, new String[0]));
+            ((List)f_loadPlugins.get(null)).add(2, wrapperConstructor.newInstance("ADLCDeobfPlugin", new MCPDeobfuscationTransformer.LoadPlugin(), null, 0, new String[0]));
         } catch (Exception e) {
             logger.error("Failed to inject MCPDeobfuscation Transformer", e);
         }
@@ -93,23 +92,18 @@ public class CodeChickenCorePlugin implements IFMLLoadingPlugin, IFMLCallHook
 
     @Override
     public String[] getASMTransformerClass() {
-        versionCheck(mcVersion, "CodeChickenCore");
-        return new String[]{
-                "codechicken.lib.asm.ClassHeirachyManager",
-                "codechicken.core.asm.InterfaceDependancyTransformer",
-                "codechicken.core.asm.TweakTransformer",
-                "codechicken.core.asm.DelegatedTransformer",
-                "codechicken.core.asm.DefaultImplementationTransformer"};
+        versionCheck(mcVersion, "AlkDepLoaderCore");
+        return new String[]{};
     }
 
     @Override
     public String getAccessTransformerClass() {
-        return "codechicken.core.asm.CodeChickenAccessTransformer";
+        return null;
     }
 
     @Override
     public String getModContainerClass() {
-        return "codechicken.core.asm.CodeChickenCoreModContainer";
+        return "codechicken.core.launch.AlksDepLoaderModContainer";
     }
 
     @Override
@@ -123,9 +117,7 @@ public class CodeChickenCorePlugin implements IFMLLoadingPlugin, IFMLCallHook
 
     @Override
     public Void call() {
-        CodeChickenCoreModContainer.loadConfig();
-        TweakTransformer.load();
-        scanCodeChickenMods();
+        //scanCodeChickenMods();
 
         return null;
     }
@@ -161,7 +153,7 @@ public class CodeChickenCorePlugin implements IFMLLoadingPlugin, IFMLCallHook
                 jar.close();
             }
         } catch (Exception e) {
-            logger.error("CodeChickenCore: Failed to read jar file: " + file.getName(), e);
+            logger.error("AlkDepLoaderCore: Failed to read jar file: " + file.getName(), e);
         }
     }
 }
